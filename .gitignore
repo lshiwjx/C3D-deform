@@ -99,6 +99,14 @@ ENV/
 
 # mypy
 .mypy_cache/
-*.xml
-*.iml
 .idea/
+*.list
+*.tfrecords
+*.npy
+*.model
+checkout_dir/
+train.txt
+val.txt
+/pre_convert_images_to_list.sh
+label.txt
+summary_dir/
