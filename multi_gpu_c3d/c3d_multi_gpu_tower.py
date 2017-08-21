@@ -24,7 +24,8 @@ def batch_loss_accu(logits, labels):
     """
     labels_one_hot = tf.one_hot(labels, depth=FLAGS.num_classes, on_value=1, off_value=0, axis=-1, )
     # whether the logits is same as label
-    is_in_top_1 = tf.nn.in_top_k(logits, tf.squeeze(labels), 1)
+    label_one_dim = tf.reshape(labels,[FLAGS.batch_size])
+    is_in_top_1 = tf.nn.in_top_k(logits, label_one_dim , 1)
     accu_batch = tf.div(tf.reduce_sum(tf.cast(is_in_top_1, tf.float32)), FLAGS.batch_size)
 
     cross_entropy = tf.nn.softmax_cross_entropy_with_logits(

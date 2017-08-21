@@ -30,11 +30,11 @@ def decode_from_tfrecord(filename_queue):
         })
 
     video_clip = tf.decode_raw(features['clip'], tf.uint8)
-    video_clip = tf.reshape(video_clip,
-                       [FLAGS.video_clip_channels, FLAGS.video_clip_length, FLAGS.video_clip_height, FLAGS.video_clip_width])
+    video_clip = tf.reshape(video_clip, [FLAGS.video_clip_length, FLAGS.video_clip_height,
+                                        FLAGS.video_clip_width, FLAGS.video_clip_channels])
 
     # clip process
-    video_clip = tf.transpose(video_clip, perm=[0, 3, 1, 2])
+    video_clip = tf.transpose(video_clip, perm=[3, 0, 1, 2])
     video_clip = tf.cast(video_clip, tf.float32)
     # crop_mean = np.load(crop_mean)
     # crop_mean = tf.transpose(crop_mean, perm=[0, 3, 1, 2])

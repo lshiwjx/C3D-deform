@@ -32,6 +32,7 @@ def read_clip_and_label(line):
     for name in sorted(os.listdir(img_dir)):
         img_name = os.path.join(img_dir, name)
         img = skimage.data.imread(img_name)
+        # format lhwc
         img_resize = skimage.transform.resize(img, (clip_height, clip_width), preserve_range=True)
         clip.append(img_resize)
         i += 1
@@ -39,6 +40,7 @@ def read_clip_and_label(line):
         if i == clip_length:
             clip_array = np.array(clip, np.uint8)
             clips.append(clip_array.tobytes())
+            clip = []
             i = 0
 
     return clips, label

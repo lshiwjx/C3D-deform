@@ -114,13 +114,13 @@ def inference_c3d(videos, _dropout=1, features=False):
     """
     # Conv1 Layer
     with tf.variable_scope('conv1') as scope:
-        print('\n', scope.name)
-        print('input shape :', videos.shape)
-        print('filter shape: ', [3, 3, 3, FLAGS.video_clip_channels, 64])
         conv1 = conv_3d('weight', 'biases', videos,
                         [3, 3, 3, FLAGS.video_clip_channels, 64], [64], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 3)) ** 0.5)
         conv1 = tf.nn.relu(conv1, name=scope.name)
+        print('\n', scope.name)
+        print('input shape :', videos.shape)
+        print('filter shape: ', [3, 3, 3, FLAGS.video_clip_channels, 64])
         print('out shape: ', conv1.shape)
         _activation_summary(conv1)
 
@@ -133,6 +133,10 @@ def inference_c3d(videos, _dropout=1, features=False):
                         [3, 3, 3, 64, 128], [128], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 64)) ** 0.5)
         conv2 = tf.nn.relu(conv2, name=scope.name)
+        print('\n', scope.name)
+        print('input shape :', pool1.shape)
+        print('filter shape: ', [3, 3, 3, 64, 128])
+        print('out shape: ', conv2.shape)
         _activation_summary(conv2)
 
     # pool2
@@ -144,10 +148,16 @@ def inference_c3d(videos, _dropout=1, features=False):
                         [3, 3, 3, 128, 256], [256], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 128)) ** 0.5)
         conv3 = tf.nn.relu(conv3, name=scope.name + 'a')
+        print('\n', scope.name)
+        print('input shape :', pool2.shape)
+        print('filter shape a : ', [3, 3, 3, 128, 256])
+        print('out shape a : ', conv3.shape)
         conv3 = conv_3d('weight_b', 'biases_b', conv3,
                         [3, 3, 3, 256, 256], [256], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 256)) ** 0.5)
         conv3 = tf.nn.relu(conv3, name=scope.name + 'b')
+        print('filter shape b : ', [3, 3, 3, 256, 256])
+        print('out shape b : ', conv3.shape)
         _activation_summary(conv3)
 
     # pool3
@@ -159,10 +169,17 @@ def inference_c3d(videos, _dropout=1, features=False):
                         [3, 3, 3, 256, 512], [512], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 256)) ** 0.5)
         conv4 = tf.nn.relu(conv4, name=scope.name + 'a')
+        print('\n', scope.name)
+        print('input shape :', pool3.shape)
+        print('filter shape a: ', [3, 3, 3, 256, 512])
+        print('out shape a: ', conv4.shape)
         conv4 = conv_3d('weight_b', 'biases_b', conv4,
                         [3, 3, 3, 512, 512], [512], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv4 = tf.nn.relu(conv4, name=scope.name + 'b')
+
+        print('filter shape b: ', [3, 3, 3, 512, 512])
+        print('out shape b: ', conv4.shape)
         _activation_summary(conv4)
 
     # pool4
@@ -174,10 +191,17 @@ def inference_c3d(videos, _dropout=1, features=False):
                         [3, 3, 3, 512, 512], [512], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv5 = tf.nn.relu(conv5, name=scope.name + 'a')
+        print('\n', scope.name)
+        print('input shape :', pool4.shape)
+        print('filter shape a : ', [3, 3, 3, 512, 512])
+        print('out shape a : ', conv5.shape)
         conv5 = conv_3d('weight_b', 'biases_b', conv5,
                         [3, 3, 3, 512, 512], [512], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv5 = tf.nn.relu(conv5, name=scope.name + 'b')
+
+        print('filter shape b : ', [3, 3, 3, 512, 512])
+        print('out shape b : ', conv5.shape)
         _activation_summary(conv5)
 
     # pool5
@@ -193,6 +217,9 @@ def inference_c3d(videos, _dropout=1, features=False):
         if features:
             return local6
         local6 = tf.nn.dropout(local6, _dropout)
+        print('\n', scope.name)
+        print('input shape :', pool5.shape)
+        print('out shape: ', local6.shape)
         _activation_summary(local6)
 
     # local7
@@ -201,6 +228,9 @@ def inference_c3d(videos, _dropout=1, features=False):
         biases = _variable_with_weight_decay('biases', [4096])
         local7 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
         local7 = tf.nn.dropout(local7, _dropout)
+        print('\n', scope.name)
+        print('input shape :', local6.shape)
+        print('out shape: ', local7.shape)
         _activation_summary(local7)
 
     # linear layer(Wx + b)
@@ -208,6 +238,9 @@ def inference_c3d(videos, _dropout=1, features=False):
         weights = _variable_with_weight_decay('weights', [4096, FLAGS.num_classes], 0.0005, stddev=1.0 / 4096)
         biases = _variable_with_weight_decay('biases', [FLAGS.num_classes])
         softmax_linear = tf.add(tf.matmul(local7, weights), biases, name=scope.name)
+        print('\n', scope.name)
+        print('input shape :', local7.shape)
+        print('out shape: ', softmax_linear.shape)
         _activation_summary(softmax_linear)
 
     return softmax_linear

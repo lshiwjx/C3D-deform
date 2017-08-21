@@ -104,9 +104,9 @@ ENV/
 *.tfrecords
 *.npy
 *.model
-checkout_dir/
-train.txt
-val.txt
 /pre_convert_images_to_list.sh
-label.txt
+*.txt
+checkout_dir/
 summary_dir/
+/multi_gpu_c3d/checkout_dir/
+/multi_gpu_c3d/summary_dir/

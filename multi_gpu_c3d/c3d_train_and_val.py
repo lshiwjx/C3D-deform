@@ -64,6 +64,7 @@ def train():
         # batch_queue = tf.contrib.slim.prefetch_queue.prefetch_queue(
         #     [images, labels], capacity=3 * FLAGS.num_gpus)
         with tf.name_scope('train'):
+            print('----------------------------Training----------------------------------')
             accuracy = []
             grads = []
             with tf.variable_scope(tf.get_variable_scope()):
@@ -154,7 +155,8 @@ def train():
             train_step = tf.group(apply_gradient_op, variables_averages_op)
 
         with tf.name_scope('val'):
-            image_batch_validation, label_batch_validation\
+            print('----------------------------validation----------------------------------------')
+            image_batch_validation, label_batch_validation \
                 = read_data_batch(is_training=False, batch_size=FLAGS.batch_size, num_epochs=FLAGS.num_epochs)
             # batch_queue_validation = tf.contrib.slim.prefetch_queue.prefetch_queue(
             #     [images_validation, labels_validation], capacity=3 * FLAGS.num_gpus)
@@ -210,13 +212,13 @@ def train():
                     loss_val, acc_val, summary_merged_val, step_train = sess.run(
                         [tower_loss_validation, accuracy_mean_validation, summary_op, global_step])
                     val_writer.add_summary(summary_merged_val, step_train)
-                    print('Validation: step %d loss %.2f accu %.2f', step_train, loss_val, acc_val)
+                    print('Validation: step %d loss %.2f accu %.2f' % (step_train, loss_val, acc_val))
                 else:
                     _, loss_train, acc_train, summary_merged, step_val \
                         = sess.run([train_step, tower_loss, accuracy_mean, summary_op, global_step])
                     train_writer.add_summary(summary_merged, step_val)
                     assert not np.isnan(loss_train), 'Model diverged with tower_loss = NaN'
-                    print('step %d loss %.2f accu %.2f', step_val, loss_train, acc_train)
+                    print('step %d loss %.2f accu %.2f' % (step_val, loss_train, acc_train))
 
                 # Save the model checkpoint periodically.
                 if global_step % 1000 == 0 or (global_step + 1) == FLAGS.max_steps:
