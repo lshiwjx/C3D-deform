@@ -2,13 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-
 import re
 
 import tensorflow as tf
 
 import c3d_model
-
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -24,8 +22,8 @@ def batch_loss_accu(logits, labels):
     """
     labels_one_hot = tf.one_hot(labels, depth=FLAGS.num_classes, on_value=1, off_value=0, axis=-1, )
     # whether the logits is same as label
-    label_one_dim = tf.reshape(labels,[FLAGS.batch_size])
-    is_in_top_1 = tf.nn.in_top_k(logits, label_one_dim , 1)
+    label_one_dim = tf.reshape(labels, [FLAGS.batch_size])
+    is_in_top_1 = tf.nn.in_top_k(logits, label_one_dim, 1)
     accu_batch = tf.div(tf.reduce_sum(tf.cast(is_in_top_1, tf.float32)), FLAGS.batch_size)
 
     cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
@@ -36,34 +34,30 @@ def batch_loss_accu(logits, labels):
     return loss_batch, accu_batch
 
 
-def tower_loss_accuracy(scope, images, labels):
+def tower_loss_accuracy(scope, images, labels, is_training):
     """Calculate the total loss on a single tower.
     Args:
       scope: unique prefix string identifying the tower, e.g. 'tower_0'
       images: Images. 4D tensor of shape [batch_size, height, width, 3].
       labels: Labels. 1D tensor of shape [batch_size].
+      is_training:
     Returns:
        Tensor of shape [] containing the total loss for a batch of data
     """
     # Build inference Graph.
-    logits = c3d_model.inference_c3d(images)
+    logits = c3d_model.inference_c3d(images, is_training)
 
     # labels = tf.cast(tf.reduce_sum(labels, 1),tf.int32)
 
     # calculate the loss and accuracy of a batch.
-    _, accuracy = batch_loss_accu(logits, labels)
+    loss, accuracy = batch_loss_accu(logits, labels)
+    tf.summary.scalar('loss_inference', loss)
 
     # Assemble all of the losses for the current tower only.
     losses = tf.get_collection('losses', scope)
 
     # Calculate the total loss for the current tower.
     total_loss = tf.add_n(losses, name='total_loss')
-
-    # Attach a scalar summary to all individual losses and the total loss; do the
-    for l in losses + [total_loss]:
-        # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training session.
-        loss_name = re.sub('%s_[0-9]*/' % c3d_model.TOWER_NAME, '', l.op.name)
-        tf.summary.scalar(loss_name, l)
 
     return total_loss, accuracy
 

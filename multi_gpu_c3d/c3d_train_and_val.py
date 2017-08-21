@@ -10,11 +10,11 @@ from c3d_model import *
 
 FLAGS = tf.app.flags.FLAGS
 # train
-tf.app.flags.DEFINE_integer('batch_size', 1,
+tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_integer('num_classes', 101,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_integer('num_gpus', 1, """How many GPUs to use.""")
+tf.app.flags.DEFINE_integer('num_gpus', 8, """How many GPUs to use.""")
 tf.app.flags.DEFINE_integer('num_epochs', 0, """Number of epochs to run.""")
 tf.app.flags.DEFINE_integer('max_steps', 1000000, """Number of batches to run.""")
 # Keep 3 decimal place
@@ -30,10 +30,10 @@ tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-120
 tf.app.flags.DEFINE_boolean('use_last_model', False, """Whether to log device placement.""")
 # decay
 tf.app.flags.DEFINE_integer('num_epochs_per_decay', 1000, "")
-tf.app.flags.DEFINE_integer('num_img_per_epoch', 10610, "get from pre_convert_image_to_list.sh")  # 2710
+tf.app.flags.DEFINE_integer('num_img_per_epoch', 10625, "get from pre_convert_image_to_list.sh")  # 2710
 tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")  # 0.2
 # learning rate schedule
-tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.0, "")  # 0.1
+tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.1, "")  # 0.1
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.001, "")  # 0.01
 
 
@@ -73,7 +73,9 @@ def train():
                         with tf.name_scope('%s_%d' % (c3d_model.TOWER_NAME, i)) as scope:
                             # image_batch, label_batch = batch_queue.dequeue()
 
-                            tower_loss, tower_accuracy = tower_loss_accuracy(scope, image_batch, label_batch)
+                            tower_loss, tower_accuracy = \
+                                tower_loss_accuracy(scope, image_batch, label_batch, is_training=True)
+                            tf.summary.scalar('total_loss', tower_loss)
                             accuracy.append(tower_accuracy)
 
                             # TODO: Reuse variables for the next tower.
@@ -168,7 +170,10 @@ def train():
                             # image_batch_validation, label_batch_validation \
                             #     = batch_queue_validation.dequeue()
                             tower_loss_validation, tower_accuracy_validation \
-                                = tower_loss_accuracy(scope, image_batch_validation, label_batch_validation)
+                                = tower_loss_accuracy(scope, image_batch_validation, label_batch_validation,
+                                                      is_training=False)
+
+                            tf.summary.scalar('total_loss', tower_loss_validation)
                             accuracy_validation.append(tower_accuracy_validation)
 
             accuracy_mean_validation = tf.reduce_mean(accuracy)

@@ -16,7 +16,7 @@ tf.app.flags.DEFINE_string('video_clip_length', 16, "the number of frame for a c
 tf.app.flags.DEFINE_string('video_clip_height', 120, "")
 tf.app.flags.DEFINE_string('video_clip_width', 160, "")
 tf.app.flags.DEFINE_string('crop_size', 112, "")
-tf.app.flags.DEFINE_string('crop_mean', [101.6089356, 97.6201375, 90.34391897], "")
+tf.app.flags.DEFINE_string('crop_mean', [101.60, 97.62, 90.34], "")
 
 
 def decode_from_tfrecord(filename_queue):

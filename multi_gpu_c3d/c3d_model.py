@@ -6,6 +6,8 @@ import re
 import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
+tf.app.flags.DEFINE_float('dropout_ratio', 0.5, "")
+tf.app.flags.DEFINE_float('weight_decay_ratio', 0.0005, "")
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the
@@ -66,6 +68,7 @@ def _variable_with_weight_decay(name, shape, weight_decay_ratio=None, stddev=0.0
         weight_decay = tf.multiply(tf.nn.l2_loss(var), weight_decay_ratio, name='weight_loss')
         # add the loss of weight decay to losses
         tf.add_to_collection('losses', weight_decay)
+        tf.summary.scalar('weight_loss', weight_decay)
     return var
 
 
@@ -102,25 +105,36 @@ def max_pool(name, l_input, depth):
                             name=name, data_format='NCDHW')
 
 
-def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
+def inference_c3d(videos, is_training, is_feature_extractor=False):
     """Generate the 3d convolution classification output according to the input videos
   
     Args:
-      videos: Data Input, the shape of the Data Input is 
-        [batch_size, channel, length, height, weight]
-        dropout_ratio:
+        videos: Data Input, the shape of the Data Input is [batch_size, channel, length, height, weight]
+        is_training: 
         is_feature_extractor: used as feature extractor or not
     Return:
       out: classification result, the shape is [batch_size, num_classes]
     """
+
+    if is_training:
+        dropout_ratio = FLAGS.dropout_ratio
+    else:
+        dropout_ratio = 1
+
+    print('is training: ', is_training)
+    print('dropout ratio: ', dropout_ratio)
+    print('weight_decay_ratio: ', FLAGS.weight_decay_ratio)
+
     # Conv1 Layer
     with tf.variable_scope('conv1') as scope:
-        image_summary = tf.transpose(videos, perm=[0,2,3,4,1])[0]
-        # scope_name = re.sub('%s_[0-9]/' % TOWER_NAME, '', scope.name)
-        tf.summary.image('video', image_summary)
+        # summary image
+        image_summary = tf.transpose(videos, perm=[0, 2, 3, 4, 1])[0]
+        tf.summary.image('video', image_summary, max_outputs=1)
 
         conv1 = conv_3d('weight', 'biases', videos,
-                        [3, 3, 3, FLAGS.video_clip_channels, 64], [64], 0.0005, biases_weight_decay=None,
+                        [3, 3, 3, FLAGS.video_clip_channels, 64], [64],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 3)) ** 0.5)
         conv1 = tf.nn.relu(conv1, name=scope.name)
         print('\n', scope.name)
@@ -135,7 +149,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
     # Conv2 Layer
     with tf.variable_scope('conv2') as scope:
         conv2 = conv_3d('weight', 'biases', pool1,
-                        [3, 3, 3, 64, 128], [128], 0.0005, biases_weight_decay=None,
+                        [3, 3, 3, 64, 128], [128],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 64)) ** 0.5)
         conv2 = tf.nn.relu(conv2, name=scope.name)
         print('\n', scope.name)
@@ -150,7 +166,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
     # Conv3 Layer
     with tf.variable_scope('conv3') as scope:
         conv3 = conv_3d('weight_a', 'biases_a', pool2,
-                        [3, 3, 3, 128, 256], [256], 0.0005, biases_weight_decay=None,
+                        [3, 3, 3, 128, 256], [256],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 128)) ** 0.5)
         conv3 = tf.nn.relu(conv3, name=scope.name + 'a')
         print('\n', scope.name)
@@ -158,7 +176,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
         print('filter shape a : ', [3, 3, 3, 128, 256])
         print('out shape a : ', conv3.shape)
         conv3 = conv_3d('weight_b', 'biases_b', conv3,
-                        [3, 3, 3, 256, 256], [256], 0.0005, biases_weight_decay=None,
+                        [3, 3, 3, 256, 256], [256],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 256)) ** 0.5)
         conv3 = tf.nn.relu(conv3, name=scope.name + 'b')
         print('filter shape b : ', [3, 3, 3, 256, 256])
@@ -171,7 +191,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
     # Conv4 Layer
     with tf.variable_scope('conv4') as scope:
         conv4 = conv_3d('weight_a', 'biases_a', pool3,
-                        [3, 3, 3, 256, 512], [512], 0.0005, biases_weight_decay=None,
+                        [3, 3, 3, 256, 512], [512],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 256)) ** 0.5)
         conv4 = tf.nn.relu(conv4, name=scope.name + 'a')
         print('\n', scope.name)
@@ -179,7 +201,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
         print('filter shape a: ', [3, 3, 3, 256, 512])
         print('out shape a: ', conv4.shape)
         conv4 = conv_3d('weight_b', 'biases_b', conv4,
-                        [3, 3, 3, 512, 512], [512], 0.0005, biases_weight_decay=None,
+                        [3, 3, 3, 512, 512], [512],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv4 = tf.nn.relu(conv4, name=scope.name + 'b')
 
@@ -193,7 +217,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
     # Conv5 Layer
     with tf.variable_scope('conv5') as scope:
         conv5 = conv_3d('weight_a', 'biases_a', pool4,
-                        [3, 3, 3, 512, 512], [512], 0.0005, biases_weight_decay=None,
+                        [3, 3, 3, 512, 512], [512],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv5 = tf.nn.relu(conv5, name=scope.name + 'a')
         print('\n', scope.name)
@@ -201,7 +227,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
         print('filter shape a : ', [3, 3, 3, 512, 512])
         print('out shape a : ', conv5.shape)
         conv5 = conv_3d('weight_b', 'biases_b', conv5,
-                        [3, 3, 3, 512, 512], [512], 0.0005, biases_weight_decay=None,
+                        [3, 3, 3, 512, 512], [512],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv5 = tf.nn.relu(conv5, name=scope.name + 'b')
 
@@ -214,7 +242,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
 
     # local6
     with tf.variable_scope('local6') as scope:
-        weights = _variable_with_weight_decay('weights', [8192, 4096], 0.0005, stddev=1.0 / 8192)
+        weights = _variable_with_weight_decay('weights', [8192, 4096],
+                                              weight_decay_ratio=FLAGS.weight_decay_ratio,
+                                              stddev=1.0 / 8192)
         biases = _variable_with_weight_decay('biases', [4096])
         local6 = tf.reshape(pool5, [-1, weights.get_shape().as_list()[0]])
         local6 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
@@ -228,7 +258,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
 
     # local7
     with tf.variable_scope('local7') as scope:
-        weights = _variable_with_weight_decay('weights', [4096, 4096], 0.0005, stddev=1.0 / 4096)
+        weights = _variable_with_weight_decay('weights', [4096, 4096],
+                                              weight_decay_ratio=FLAGS.weight_decay_ratio,
+                                              stddev=1.0 / 4096)
         biases = _variable_with_weight_decay('biases', [4096])
         local7 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
         local7 = tf.nn.dropout(local7, dropout_ratio)
@@ -239,7 +271,9 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
 
     # linear layer(Wx + b)
     with tf.variable_scope('softmax_lineaer') as scope:
-        weights = _variable_with_weight_decay('weights', [4096, FLAGS.num_classes], 0.0005, stddev=1.0 / 4096)
+        weights = _variable_with_weight_decay('weights', [4096, FLAGS.num_classes],
+                                              weight_decay_ratio=FLAGS.weight_decay_ratio,
+                                              stddev=1.0 / 4096)
         biases = _variable_with_weight_decay('biases', [FLAGS.num_classes])
         softmax_linear = tf.add(tf.matmul(local7, weights), biases, name=scope.name)
         print('\n', scope.name)
@@ -248,6 +282,3 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
         _activation_summary(softmax_linear)
 
     return softmax_linear
-
-
-

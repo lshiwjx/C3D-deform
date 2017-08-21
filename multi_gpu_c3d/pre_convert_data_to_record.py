@@ -30,6 +30,7 @@ def read_clip_and_label(line):
     clip = []
     i = 0
     for name in sorted(os.listdir(img_dir)):
+        print('current dir: %s\n' % name)
         img_name = os.path.join(img_dir, name)
         img = skimage.data.imread(img_name)
         # format lhwc
