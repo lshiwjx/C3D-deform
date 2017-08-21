@@ -24,15 +24,15 @@ def _activation_summary(var):
     tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', var.op.name)
     with tf.name_scope(tensor_name):
         mean = tf.reduce_mean(var)
-        tf.summary.scalar('mean', mean)
-        with tf.name_scope('stddev'):
-            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.summary.scalar('stddev', stddev)
-        tf.summary.scalar('max', tf.reduce_max(var))
-        tf.summary.scalar('min', tf.reduce_min(var))
-        tf.summary.histogram('activations', var)
+        tf.summary.scalar(tensor_name, mean)
+        # with tf.name_scope('stddev'):
+        #     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        # tf.summary.scalar('stddev', stddev)
+        # tf.summary.scalar('max', tf.reduce_max(var))
+        # tf.summary.scalar('min', tf.reduce_min(var))
+        # tf.summary.histogram('activations', var)
         # percentage of zero in the variable
-        tf.summary.scalar('sparsity', tf.nn.zero_fraction(var))
+        # tf.summary.scalar('sparsity', tf.nn.zero_fraction(var))
 
 
 def _variable_on_cpu(name, shape, initializer):
@@ -103,17 +103,23 @@ def max_pool(name, l_input, depth):
                             name=name, data_format='NCDHW')
 
 
-def inference_c3d(videos, _dropout=1, features=False):
+def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
     """Generate the 3d convolution classification output according to the input videos
   
     Args:
       videos: Data Input, the shape of the Data Input is 
-        [batch_size,, channel, length, height, weight]
+        [batch_size, channel, length, height, weight]
+        dropout_ratio:
+        is_feature_extractor: used as feature extractor or not
     Return:
       out: classification result, the shape is [batch_size, num_classes]
     """
     # Conv1 Layer
     with tf.variable_scope('conv1') as scope:
+        image_summary = tf.transpose(videos, perm=[0,2,3,4,1])[0]
+        scope_name = re.sub('%s_[0-9]/' % TOWER_NAME, '', scope.name)
+        tf.summary.image(scope_name, image_summary)
+
         conv1 = conv_3d('weight', 'biases', videos,
                         [3, 3, 3, FLAGS.video_clip_channels, 64], [64], 0.0005, biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 3)) ** 0.5)
@@ -211,12 +217,11 @@ def inference_c3d(videos, _dropout=1, features=False):
     with tf.variable_scope('local6') as scope:
         weights = _variable_with_weight_decay('weights', [8192, 4096], 0.0005, stddev=1.0 / 8192)
         biases = _variable_with_weight_decay('biases', [4096])
-        pool5 = tf.transpose(pool5, perm=[0, 1, 4, 2, 3])
         local6 = tf.reshape(pool5, [-1, weights.get_shape().as_list()[0]])
         local6 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
-        if features:
+        if is_feature_extractor:
             return local6
-        local6 = tf.nn.dropout(local6, _dropout)
+        local6 = tf.nn.dropout(local6, dropout_ratio)
         print('\n', scope.name)
         print('input shape :', pool5.shape)
         print('out shape: ', local6.shape)
@@ -227,7 +232,7 @@ def inference_c3d(videos, _dropout=1, features=False):
         weights = _variable_with_weight_decay('weights', [4096, 4096], 0.0005, stddev=1.0 / 4096)
         biases = _variable_with_weight_decay('biases', [4096])
         local7 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
-        local7 = tf.nn.dropout(local7, _dropout)
+        local7 = tf.nn.dropout(local7, dropout_ratio)
         print('\n', scope.name)
         print('input shape :', local6.shape)
         print('out shape: ', local7.shape)

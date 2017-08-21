@@ -31,10 +31,10 @@ tf.app.flags.DEFINE_boolean('use_last_model', False, """Whether to log device pl
 # decay
 tf.app.flags.DEFINE_integer('num_epochs_per_decay', 1000, "")
 tf.app.flags.DEFINE_integer('num_img_per_epoch', 10610, "get from pre_convert_image_to_list.sh")  # 2710
-tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")
+tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")  # 0.2
 # learning rate schedule
-tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.1, "")
-tf.app.flags.DEFINE_float('initial_learning_rate', 0.01, "")
+tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.0, "")  # 0.1
+tf.app.flags.DEFINE_float('initial_learning_rate', 0.001, "")  # 0.01
 
 
 def train():
