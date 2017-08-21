@@ -31,6 +31,7 @@ def _activation_summary(var):
         tf.summary.scalar('max', tf.reduce_max(var))
         tf.summary.scalar('min', tf.reduce_min(var))
         tf.summary.histogram('activations', var)
+        # percentage of zero in the variable
         tf.summary.scalar('sparsity', tf.nn.zero_fraction(var))
 
 

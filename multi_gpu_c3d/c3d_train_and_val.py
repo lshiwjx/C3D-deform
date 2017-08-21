@@ -10,14 +10,14 @@ from c3d_model import *
 
 FLAGS = tf.app.flags.FLAGS
 # train
-tf.app.flags.DEFINE_integer('batch_size', 4,
+tf.app.flags.DEFINE_integer('batch_size', 1,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_integer('num_classes', 101,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_integer('num_gpus', 1, """How many GPUs to use.""")
 tf.app.flags.DEFINE_integer('num_epochs', 0, """Number of epochs to run.""")
 tf.app.flags.DEFINE_integer('max_steps', 1000000, """Number of batches to run.""")
-# others
+# Keep 3 decimal place
 tf.app.flags.DEFINE_boolean('use_fp16', False, """Train the model using fp16.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False, """Whether to log device placement.""")
 # saver
