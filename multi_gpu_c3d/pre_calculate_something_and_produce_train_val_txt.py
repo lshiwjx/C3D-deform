@@ -23,6 +23,7 @@ for data_dir in data_dirs:
     label += 1
     label_list.append(data_dir)
     for video_dir in video_dirs:
+        print("now for data dir %s\n" % video_dir)
         img_path = os.path.join(video_path, video_dir)
         if not random.randint(0, random_num) == random_num:
             train_list.append((img_path, label))
@@ -54,6 +55,10 @@ for item in label_list:
 label_file.close()
 
 mean = np.mean(np.array(mean_list), 0)
+others_file = open('others.txt','w')
+others_file.write("mean : %.2f %.2f %.2f\n" % (mean[0],mean[1],mean[2]))
+others_file.write("train num: %d\n" % count_for_train)
+others_file.write("val num: %d\n" % count_for_val)
 print("train num: ", count_for_train)
 print("val num: ", count_for_val)
 print("mean val: ", mean)

@@ -21,18 +21,17 @@ def _activation_summary(var):
       var: Tensor
     """
     # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
-    tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', var.op.name)
-    with tf.name_scope(tensor_name):
-        mean = tf.reduce_mean(var)
-        tf.summary.scalar(tensor_name, mean)
-        # with tf.name_scope('stddev'):
-        #     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        # tf.summary.scalar('stddev', stddev)
-        # tf.summary.scalar('max', tf.reduce_max(var))
-        # tf.summary.scalar('min', tf.reduce_min(var))
-        # tf.summary.histogram('activations', var)
-        # percentage of zero in the variable
-        # tf.summary.scalar('sparsity', tf.nn.zero_fraction(var))
+    # tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', var.op.name)
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar('mean', mean)
+    # with tf.name_scope('stddev'):
+    #     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    # tf.summary.scalar('stddev', stddev)
+    # tf.summary.scalar('max', tf.reduce_max(var))
+    # tf.summary.scalar('min', tf.reduce_min(var))
+    # tf.summary.histogram('activations', var)
+    # percentage of zero in the variable
+    # tf.summary.scalar('sparsity', tf.nn.zero_fraction(var))
 
 
 def _variable_on_cpu(name, shape, initializer):
@@ -117,8 +116,8 @@ def inference_c3d(videos, dropout_ratio=1, is_feature_extractor=False):
     # Conv1 Layer
     with tf.variable_scope('conv1') as scope:
         image_summary = tf.transpose(videos, perm=[0,2,3,4,1])[0]
-        scope_name = re.sub('%s_[0-9]/' % TOWER_NAME, '', scope.name)
-        tf.summary.image(scope_name, image_summary)
+        # scope_name = re.sub('%s_[0-9]/' % TOWER_NAME, '', scope.name)
+        tf.summary.image('video', image_summary)
 
         conv1 = conv_3d('weight', 'biases', videos,
                         [3, 3, 3, FLAGS.video_clip_channels, 64], [64], 0.0005, biases_weight_decay=None,
