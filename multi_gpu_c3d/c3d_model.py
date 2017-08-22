@@ -7,7 +7,7 @@ import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_float('dropout_ratio', 1, "")
-tf.app.flags.DEFINE_float('weight_decay_ratio', 0.005, "")
+tf.app.flags.DEFINE_float('weight_decay_ratio', 0.0005, "")
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the
@@ -91,18 +91,18 @@ def conv_3d(filter_name, biases_name, input,
         tensor of convolution result
       """
     filter = _variable_with_weight_decay(filter_name, filter_shape, filter_weight_decay, stddev=filter_stddev)
-    conv = tf.nn.conv3d(input, filter, [1, 1, 1, 1, 1], padding='SAME', data_format='NCDHW')
+    conv = tf.nn.conv3d(input, filter, [1, 1, 1, 1, 1], padding='SAME')  # , data_format='NCDHW')
     biases = _variable_with_weight_decay(biases_name, biases_shape, biases_weight_decay, stddev=biases_stddev)
-    conv_trans = tf.transpose(conv, perm=[0, 2, 3, 4, 1])
-    pre_activation_trans = tf.nn.bias_add(conv_trans, biases)
-    pre_activation = tf.transpose(pre_activation_trans, perm=[0, 4, 1, 2, 3])
+    # conv_trans = tf.transpose(conv, perm=[0, 2, 3, 4, 1])
+    pre_activation = tf.nn.bias_add(conv, biases)
+    # pre_activation = tf.transpose(pre_activation_trans, perm=[0, 4, 1, 2, 3])
     return pre_activation
 
 
 def max_pool(name, l_input, depth):
-    return tf.nn.max_pool3d(l_input, ksize=[1, 1, depth, 2, 2],
-                            strides=[1, 1, depth, 2, 2], padding='SAME',
-                            name=name, data_format='NCDHW')
+    return tf.nn.max_pool3d(l_input, ksize=[1, depth, 2, 2, 1],
+                            strides=[1, depth, 2, 2, 1], padding='SAME',
+                            name=name)
 
 
 def inference_c3d(videos, is_training, is_feature_extractor=False):
@@ -121,15 +121,15 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
     else:
         dropout_ratio = 1
 
-    print('is training: ', is_training)
-    print('dropout ratio: ', dropout_ratio)
-    print('weight_decay_ratio: ', FLAGS.weight_decay_ratio)
+    # print('is training: ', is_training)
+    # print('dropout ratio: ', dropout_ratio)
+    # print('weight_decay_ratio: ', FLAGS.weight_decay_ratio)
 
     # Conv1 Layer
     with tf.variable_scope('conv1') as scope:
         # summary image
-        image_summary = tf.transpose(videos, perm=[0, 2, 3, 4, 1])[0]
-        tf.summary.image('video', image_summary, max_outputs=1)
+        # image_summary = tf.transpose(videos, perm=[0, 2, 3, 4, 1])[0]
+        tf.summary.image('video', videos[0], max_outputs=1)
 
         conv1 = conv_3d('weight', 'biases', videos,
                         [3, 3, 3, FLAGS.video_clip_channels, 64], [64],
@@ -137,10 +137,10 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 3)) ** 0.5)
         conv1 = tf.nn.relu(conv1, name=scope.name)
-        print('\n', scope.name)
-        print('input shape :', videos.shape)
-        print('filter shape: ', [3, 3, 3, FLAGS.video_clip_channels, 64])
-        print('out shape: ', conv1.shape)
+        # print('\n', scope.name)
+        # print('input shape :', videos.shape)
+        # print('filter shape: ', [3, 3, 3, FLAGS.video_clip_channels, 64])
+        # print('out shape: ', conv1.shape)
         _activation_summary(conv1)
 
     # pool1
@@ -154,10 +154,13 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 64)) ** 0.5)
         conv2 = tf.nn.relu(conv2, name=scope.name)
-        print('\n', scope.name)
-        print('input shape :', pool1.shape)
-        print('filter shape: ', [3, 3, 3, 64, 128])
-        print('out shape: ', conv2.shape)
+
+        visual = tf.expand_dims(tf.transpose(conv2[0],perm=[3,0,1,2]),4)
+        tf.summary.image('feature_map', visual[0], 3)
+        # print('\n', scope.name)
+        # print('input shape :', pool1.shape)
+        # print('filter shape: ', [3, 3, 3, 64, 128])
+        # print('out shape: ', conv2.shape)
         _activation_summary(conv2)
 
     # pool2
@@ -171,18 +174,18 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 128)) ** 0.5)
         conv3 = tf.nn.relu(conv3, name=scope.name + 'a')
-        print('\n', scope.name)
-        print('input shape :', pool2.shape)
-        print('filter shape a : ', [3, 3, 3, 128, 256])
-        print('out shape a : ', conv3.shape)
+        # print('\n', scope.name)
+        # print('input shape :', pool2.shape)
+        # print('filter shape a : ', [3, 3, 3, 128, 256])
+        # print('out shape a : ', conv3.shape)
         conv3 = conv_3d('weight_b', 'biases_b', conv3,
                         [3, 3, 3, 256, 256], [256],
                         filter_weight_decay=FLAGS.weight_decay_ratio,
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 256)) ** 0.5)
         conv3 = tf.nn.relu(conv3, name=scope.name + 'b')
-        print('filter shape b : ', [3, 3, 3, 256, 256])
-        print('out shape b : ', conv3.shape)
+        # print('filter shape b : ', [3, 3, 3, 256, 256])
+        # print('out shape b : ', conv3.shape)
         _activation_summary(conv3)
 
     # pool3
@@ -196,10 +199,10 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 256)) ** 0.5)
         conv4 = tf.nn.relu(conv4, name=scope.name + 'a')
-        print('\n', scope.name)
-        print('input shape :', pool3.shape)
-        print('filter shape a: ', [3, 3, 3, 256, 512])
-        print('out shape a: ', conv4.shape)
+        # print('\n', scope.name)
+        # print('input shape :', pool3.shape)
+        # print('filter shape a: ', [3, 3, 3, 256, 512])
+        # print('out shape a: ', conv4.shape)
         conv4 = conv_3d('weight_b', 'biases_b', conv4,
                         [3, 3, 3, 512, 512], [512],
                         filter_weight_decay=FLAGS.weight_decay_ratio,
@@ -207,8 +210,8 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv4 = tf.nn.relu(conv4, name=scope.name + 'b')
 
-        print('filter shape b: ', [3, 3, 3, 512, 512])
-        print('out shape b: ', conv4.shape)
+        # print('filter shape b: ', [3, 3, 3, 512, 512])
+        # print('out shape b: ', conv4.shape)
         _activation_summary(conv4)
 
     # pool4
@@ -222,10 +225,10 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv5 = tf.nn.relu(conv5, name=scope.name + 'a')
-        print('\n', scope.name)
-        print('input shape :', pool4.shape)
-        print('filter shape a : ', [3, 3, 3, 512, 512])
-        print('out shape a : ', conv5.shape)
+        # print('\n', scope.name)
+        # print('input shape :', pool4.shape)
+        # print('filter shape a : ', [3, 3, 3, 512, 512])
+        # print('out shape a : ', conv5.shape)
         conv5 = conv_3d('weight_b', 'biases_b', conv5,
                         [3, 3, 3, 512, 512], [512],
                         filter_weight_decay=FLAGS.weight_decay_ratio,
@@ -233,8 +236,8 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
         conv5 = tf.nn.relu(conv5, name=scope.name + 'b')
 
-        print('filter shape b : ', [3, 3, 3, 512, 512])
-        print('out shape b : ', conv5.shape)
+        # print('filter shape b : ', [3, 3, 3, 512, 512])
+        # print('out shape b : ', conv5.shape)
         _activation_summary(conv5)
 
     # pool5
@@ -246,14 +249,15 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                                               weight_decay_ratio=FLAGS.weight_decay_ratio,
                                               stddev=1.0 / 8192)
         biases = _variable_with_weight_decay('biases', [4096])
+        pool5 = tf.transpose(pool5, perm=[0, 1, 4, 2, 3])
         local6 = tf.reshape(pool5, [-1, weights.get_shape().as_list()[0]])
         local6 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
         if is_feature_extractor:
             return local6
         local6 = tf.nn.dropout(local6, dropout_ratio)
-        print('\n', scope.name)
-        print('input shape :', pool5.shape)
-        print('out shape: ', local6.shape)
+        # print('\n', scope.name)
+        # print('input shape :', pool5.shape)
+        # print('out shape: ', local6.shape)
         _activation_summary(local6)
 
     # local7
@@ -264,9 +268,9 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
         biases = _variable_with_weight_decay('biases', [4096])
         local7 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
         local7 = tf.nn.dropout(local7, dropout_ratio)
-        print('\n', scope.name)
-        print('input shape :', local6.shape)
-        print('out shape: ', local7.shape)
+        # print('\n', scope.name)
+        # print('input shape :', local6.shape)
+        # print('out shape: ', local7.shape)
         _activation_summary(local7)
 
     # linear layer(Wx + b)
@@ -276,9 +280,9 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                                               stddev=1.0 / 4096)
         biases = _variable_with_weight_decay('biases', [FLAGS.num_classes])
         softmax_linear = tf.add(tf.matmul(local7, weights), biases, name=scope.name)
-        print('\n', scope.name)
-        print('input shape :', local7.shape)
-        print('out shape: ', softmax_linear.shape)
+        # print('\n', scope.name)
+        # print('input shape :', local7.shape)
+        # print('out shape: ', softmax_linear.shape)
         _activation_summary(softmax_linear)
 
     return softmax_linear

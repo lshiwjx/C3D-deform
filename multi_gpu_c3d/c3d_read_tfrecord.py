@@ -9,8 +9,8 @@ from skimage.viewer import ImageViewer
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('record_dir', './', "")
-tf.app.flags.DEFINE_string('train_file', 'rgb_train_uint8.tfrecords', "")
-tf.app.flags.DEFINE_string('val_file', 'rgb_val_uint8.tfrecords', "")
+tf.app.flags.DEFINE_string('train_file', 'rgb_8_train_uint8.tfrecords', "")
+tf.app.flags.DEFINE_string('val_file', 'rgb_8_val_uint8.tfrecords', "")
 tf.app.flags.DEFINE_string('video_clip_channels', 3, "")
 tf.app.flags.DEFINE_string('video_clip_length', 16, "the number of frame for a clip of video")
 tf.app.flags.DEFINE_string('video_clip_height', 120, "")
@@ -33,7 +33,7 @@ def decode_from_tfrecord(filename_queue):
     video_clip = tf.reshape(video_clip, [FLAGS.video_clip_length, FLAGS.video_clip_height,
                                         FLAGS.video_clip_width, FLAGS.video_clip_channels])
 
-    # clip process
+    # clip process input si NLHWC
     video_clip = tf.transpose(video_clip, perm=[3, 0, 1, 2])
     video_clip = tf.cast(video_clip, tf.float32)
     # crop_mean = np.load(crop_mean)
@@ -45,6 +45,8 @@ def decode_from_tfrecord(filename_queue):
     crop_mean[1, :, :, :] = FLAGS.crop_mean[1]
     crop_mean[2, :, :, :] = FLAGS.crop_mean[2]
     video_clip -= crop_mean
+    # NCLHW or NLHWC TODO
+    video_clip = tf.transpose(video_clip, perm=[1, 2, 3, 0])
 
     label = tf.cast(features['label'], tf.int32)
     label = tf.reshape(label, [1])
@@ -79,7 +81,7 @@ def read_data_batch(is_training, batch_size, num_epochs=None):
     with tf.name_scope('input'):
         # create a queue and enqueue with the filename
         filename_queue = tf.train.string_input_producer(
-            [filename], num_epochs=num_epochs, capacity=128)
+            [filename], num_epochs=num_epochs, capacity=32)
 
         # read the img as tensor
         video_clip, label = decode_from_tfrecord(filename_queue)
@@ -90,7 +92,7 @@ def read_data_batch(is_training, batch_size, num_epochs=None):
 
         num_treads = 10
         # minimum number for examples, or will block dequeue
-        min_after_dequeue = 1024
+        min_after_dequeue = 4096
         safety_margin = 3
         # capacity of the queue, or will block enqueue
         capacity = min_after_dequeue + (num_treads + safety_margin) * batch_size

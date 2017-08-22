@@ -26,15 +26,15 @@ tf.app.flags.DEFINE_string('summaries_dir', './summary_dir', "")
 # model load
 tf.app.flags.DEFINE_string('pretrain_model_file', './sports1m_finetuning_ucf101.model', "")
 tf.app.flags.DEFINE_boolean('use_pretrain_model', True, """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-1000', "")
+tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-900', "")
 tf.app.flags.DEFINE_boolean('use_last_model', False, """Whether to log device placement.""")
 # decay
-tf.app.flags.DEFINE_integer('num_epochs_per_decay', 4, "")
+tf.app.flags.DEFINE_integer('num_epochs_per_decay', 10, "")  # 860
 tf.app.flags.DEFINE_integer('num_img_per_epoch', 10625, "get from pre_convert_image_to_list.sh")  # 2710
-tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")  # 0.2
+tf.app.flags.DEFINE_float('moving_average_decay', 0.0, "")  # 0.2
 # learning rate schedule
 tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.1, "")  # 0.1
-tf.app.flags.DEFINE_float('initial_learning_rate', 0.01, "")  # 0.01
+tf.app.flags.DEFINE_float('initial_learning_rate', 0.05, "")  # 0.01
 
 
 def train():
@@ -61,8 +61,8 @@ def train():
         # data for train
         images_batch, labels_batch = read_data_batch(is_training=True, batch_size=FLAGS.batch_size,
                                                      num_epochs=FLAGS.num_epochs)
-        batch_queue = tf.contrib.slim.prefetch_queue.prefetch_queue(
-            [images_batch, labels_batch], capacity=3 * FLAGS.num_gpus)
+        # batch_queue = tf.contrib.slim.prefetch_queue.prefetch_queue(
+        #     [images_batch, labels_batch], capacity=3 * FLAGS.num_gpus)
         # with tf.name_scope('train'):
         print('----------------------------Training----------------------------------')
         accuracy = []
@@ -73,10 +73,10 @@ def train():
             for i in xrange(FLAGS.num_gpus):
                 with tf.device('/gpu:%d' % i):
                     with tf.name_scope('%s_%d' % (c3d_model.TOWER_NAME, i)) as scope:
-                        image_batch, label_batch = batch_queue.dequeue()
+                        # image_batch, label_batch = batch_queue.dequeue()
 
                         tower_loss, tower_accuracy = \
-                            tower_loss_accuracy(scope, image_batch, label_batch, is_training=True)
+                            tower_loss_accuracy(scope, images_batch, labels_batch, is_training=True)
                         losses.append(tower_loss)
                         accuracy.append(tower_accuracy)
 
@@ -114,18 +114,18 @@ def train():
         summary_val = []
         images_batch_validation, labels_batch_validation \
             = read_data_batch(is_training=False, batch_size=FLAGS.batch_size, num_epochs=FLAGS.num_epochs)
-        batch_queue_validation = tf.contrib.slim.prefetch_queue.prefetch_queue(
-            [images_batch_validation, labels_batch_validation], capacity=3 * FLAGS.num_gpus)
+        # batch_queue_validation = tf.contrib.slim.prefetch_queue.prefetch_queue(
+        #     [images_batch_validation, labels_batch_validation], capacity=3 * FLAGS.num_gpus)
         accuracy_validation = []
         loss_validation = []
         with tf.variable_scope(tf.get_variable_scope(), reuse=True):
             for i in xrange(FLAGS.num_gpus):
                 with tf.device('/gpu:%d' % i):
                     with tf.name_scope('%s_%d' % (c3d_model.TOWER_NAME + '_validation', i)) as scope:
-                        image_batch_validation, label_batch_validation \
-                            = batch_queue_validation.dequeue()
+                        # image_batch_validation, label_batch_validation \
+                        #     = batch_queue_validation.dequeue()
                         tower_loss_validation, tower_accuracy_validation \
-                            = tower_loss_accuracy(scope, image_batch_validation, label_batch_validation,
+                            = tower_loss_accuracy(scope, images_batch_validation, labels_batch_validation,
                                                   is_training=False)
 
                         accuracy_validation.append(tower_accuracy_validation)
@@ -148,18 +148,40 @@ def train():
         # whether load existed model
         if FLAGS.use_pretrain_model:
             with tf.variable_scope(tf.get_variable_scope(), reuse=True):
-                saver_c3d = tf.train.Saver()
+                variables = {
+                    "var_name/wc1": tf.get_variable('conv1/weight'),
+                    "var_name/wc2": tf.get_variable('conv2/weight'),
+                    "var_name/wc3a": tf.get_variable('conv3/weight_a'),
+                    "var_name/wc3b": tf.get_variable('conv3/weight_b'),
+                    "var_name/wc4a": tf.get_variable('conv4/weight_a'),
+                    "var_name/wc4b": tf.get_variable('conv4/weight_b'),
+                    "var_name/wc5a": tf.get_variable('conv5/weight_a'),
+                    "var_name/wc5b": tf.get_variable('conv5/weight_b'),
+                    "var_name/wd1": tf.get_variable('local6/weights'),
+                    "var_name/wd2": tf.get_variable('local7/weights'),
+                    "var_name/bc1": tf.get_variable('conv1/biases'),
+                    "var_name/bc2": tf.get_variable('conv2/biases'),
+                    "var_name/bc3a": tf.get_variable('conv3/biases_a'),
+                    "var_name/bc3b": tf.get_variable('conv3/biases_b'),
+                    "var_name/bc4a": tf.get_variable('conv4/biases_a'),
+                    "var_name/bc4b": tf.get_variable('conv4/biases_b'),
+                    "var_name/bc5a": tf.get_variable('conv5/biases_a'),
+                    "var_name/bc5b": tf.get_variable('conv5/biases_b'),
+                    "var_name/bd1": tf.get_variable('local6/biases'),
+                    "var_name/bd2": tf.get_variable('local7/biases')
+                }
+                saver_c3d = tf.train.Saver(variables)
                 saver_c3d.restore(sess, FLAGS.pretrain_model_file)
         elif FLAGS.use_last_model:
             with tf.variable_scope(tf.get_variable_scope(), reuse=True):
                 saver_c3d = tf.train.Saver()
                 saver_c3d.restore(sess, FLAGS.last_model)
-                # TODO
+                # TODO use part of saver
 
         # merge summary
         summary_val_op = tf.summary.merge(summary_val)
-        # summary_train_op = tf.summary.merge(summary_train)
-        summary_train_op = tf.summary.merge_all()
+        summary_train_op = tf.summary.merge(summary_train)
+        summary_op = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(FLAGS.summaries_dir + '/train', sess.graph)
         val_writer = tf.summary.FileWriter(FLAGS.summaries_dir + '/val')
 
@@ -178,17 +200,17 @@ def train():
                 epoch = step / num_batches_per_epoch / FLAGS.num_gpus
                 if step % 10 == 0:
                     loss_val, acc_val, summary_merged_val = sess.run(
-                        [loss_mean_validation, accuracy_mean_validation, summary_val_op])
+                        [loss_mean_validation, accuracy_mean_validation, summary_op])
                     val_writer.add_summary(summary_merged_val, step)
                     print('Validation: epoch %d step %d loss %.2f accu %.2f' % (epoch, step, loss_val, acc_val))
                 else:
-                    if step % 100 == 99:
+                    if step == 101:
                         # add the runtime statistics
                         # choose session runs in tensorboard
                         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                         run_metadata = tf.RunMetadata()
                         _, loss_train, acc_train, summary_merged \
-                            = sess.run([train_step, loss_mean, accuracy_mean, summary_train_op],
+                            = sess.run([train_step, loss_mean, accuracy_mean, summary_op],
                                        options=run_options,
                                        run_metadata=run_metadata)
                         train_writer.add_run_metadata(run_metadata, 'step%d' % step)
@@ -197,7 +219,7 @@ def train():
                         print('Adding run metadata for', step)
                     else:
                         _, loss_train, acc_train, summary_merged \
-                            = sess.run([train_step, loss_mean, accuracy_mean, summary_train_op])
+                            = sess.run([train_step, loss_mean, accuracy_mean, summary_op])
                         train_writer.add_summary(summary_merged, step)
                         assert not np.isnan(loss_train), 'Model diverged with tower_loss = NaN'
                         print('epoch %d step %d loss %.2f accu %.2f' % (epoch, step, loss_train, acc_train))
@@ -205,7 +227,7 @@ def train():
                 # Save the model checkpoint periodically.
                 if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
                     checkpoint_path = os.path.join(FLAGS.checkpoint_dir, 'model.ckpt')
-                    saver.save(sess, checkpoint_path, global_step=step)
+                    saver.save(sess, checkpoint_path, global_step=global_step)
 
         except tf.errors.OutOfRangeError:
             epoch = step / num_batches_per_epoch / FLAGS.num_gpus
