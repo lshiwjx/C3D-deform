@@ -69,7 +69,7 @@ def _variable_with_weight_decay(name, shape, weight_decay_ratio=None, stddev=0.0
     return var
 
 
-def deoform_conv_3d(filter_name, biases_name, input,offset,
+def deform_conv3d(filter_name, biases_name, input,offset,
                     filter_shape, offset_shape, biases_shape,
                     filter_weight_decay=None, offset_weight_decay=None, biases_weight_decay=None,
                     filter_stddev=0.0, offset_stddev=0.0, biases_stddev=0.0):
@@ -175,12 +175,23 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
 
     # Conv2 Layer
     with tf.variable_scope('conv2') as scope:
-        conv2 = conv_3d('weight', 'biases', pool1,
+        conv2 = conv_3d('weighta', 'biasesa', pool1,
+                        [3, 3, 3, 64, 128], [128],
+                        filter_weight_decay=FLAGS.weight_decay_ratio,
+                        biases_weight_decay=None,
+                        filter_stddev=(2.0 / (3 ** 3 * 64)) ** 0.5)
+        conv2 = conv_3d('weightb', 'biasesb', conv2,
                         [3, 3, 3, 64, 128], [128],
                         filter_weight_decay=FLAGS.weight_decay_ratio,
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 64)) ** 0.5)
         conv2 = tf.nn.relu(conv2, name=scope.name)
+        offset = max_pool('pool2', conv2, 2)
+        tf.reshape(offset)
+        tf.transpose(pool1)
+        conv2 = deform_conv3d('weightc','biasesc',pool1,offset,[],[],[])
+        tf.transpose(conv2)
+
 
         visual = tf.expand_dims(tf.transpose(conv2[0],perm=[3,0,1,2]),4)
         tf.summary.image('feature_map', visual[0], 3)
@@ -261,6 +272,7 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
                         filter_weight_decay=FLAGS.weight_decay_ratio,
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 512)) ** 0.5)
+
         conv5 = tf.nn.relu(conv5, name=scope.name + 'b')
 
         # print('filter shape b : ', [3, 3, 3, 512, 512])
