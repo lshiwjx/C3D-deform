@@ -7,7 +7,7 @@ import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_float('dropout_ratio', 1, "")
-tf.app.flags.DEFINE_float('weight_decay_ratio', 0.0005, "")
+tf.app.flags.DEFINE_float('weight_decay_ratio', 0.0001, "")
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the

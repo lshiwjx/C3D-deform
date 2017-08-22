@@ -29,12 +29,12 @@ tf.app.flags.DEFINE_boolean('use_pretrain_model', True, """Whether to log device
 tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-900', "")
 tf.app.flags.DEFINE_boolean('use_last_model', False, """Whether to log device placement.""")
 # decay
-tf.app.flags.DEFINE_integer('num_epochs_per_decay', 10, "")  # 860
+tf.app.flags.DEFINE_integer('num_epochs_per_decay', 100, "")  # 860
 tf.app.flags.DEFINE_integer('num_img_per_epoch', 10625, "get from pre_convert_image_to_list.sh")  # 2710
 tf.app.flags.DEFINE_float('moving_average_decay', 0.0, "")  # 0.2
 # learning rate schedule
-tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.1, "")  # 0.1
-tf.app.flags.DEFINE_float('initial_learning_rate', 0.05, "")  # 0.01
+tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.5, "")  # 0.1
+tf.app.flags.DEFINE_float('initial_learning_rate', 0.03, "")  # 0.01
 
 
 def train():
@@ -198,7 +198,7 @@ def train():
             while not coord.should_stop():
                 step += 1
                 epoch = step / num_batches_per_epoch / FLAGS.num_gpus
-                if step % 10 == 0:
+                if step % 100 == 0:
                     loss_val, acc_val, summary_merged_val = sess.run(
                         [loss_mean_validation, accuracy_mean_validation, summary_op])
                     val_writer.add_summary(summary_merged_val, step)
