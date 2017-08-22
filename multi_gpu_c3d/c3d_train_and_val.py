@@ -25,7 +25,7 @@ tf.app.flags.DEFINE_string('checkpoint_dir', './checkout_dir', "")
 tf.app.flags.DEFINE_string('summaries_dir', './summary_dir', "")
 # model load
 tf.app.flags.DEFINE_string('pretrain_model_file', './sports1m_finetuning_ucf101.model', "")
-tf.app.flags.DEFINE_boolean('use_pretrain_model', False, """Whether to log device placement.""")
+tf.app.flags.DEFINE_boolean('use_pretrain_model', True, """Whether to log device placement.""")
 tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-1000', "")
 tf.app.flags.DEFINE_boolean('use_last_model', False, """Whether to log device placement.""")
 # decay
@@ -33,7 +33,7 @@ tf.app.flags.DEFINE_integer('num_epochs_per_decay', 4, "")
 tf.app.flags.DEFINE_integer('num_img_per_epoch', 10625, "get from pre_convert_image_to_list.sh")  # 2710
 tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")  # 0.2
 # learning rate schedule
-tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.5, "")  # 0.1
+tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.1, "")  # 0.1
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.01, "")  # 0.01
 
 

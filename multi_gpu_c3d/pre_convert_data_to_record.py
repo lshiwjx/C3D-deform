@@ -18,6 +18,30 @@ img_train_name_list = "train.txt"
 img_valid_name_list = "val.txt"
 
 
+def read_clip_and_label_1(line):
+    """
+    read pic according the dir path, return the clip for tf record writer, have overlap
+    :param line: img dir and label: /d1/d2/ 0
+    :return: clip(bytes) and label(int)
+    """
+    img_dir, label, _ = line.split(' ')
+    print('current dir: %s' % img_dir)
+    label = int(label)
+    clips = []
+    name_img = sorted(os.listdir(img_dir))
+    for i in range(len(name_img)//(clip_length//2)-1):
+        clip = []
+        for j in range(clip_length):
+            img_name = os.path.join(img_dir, name_img[i*8+j])
+            img = skimage.data.imread(img_name)
+            # format lhwc
+            img_resize = skimage.transform.resize(img, (clip_height, clip_width), preserve_range=True)
+            clip.append(img_resize)
+        clip_array = np.array(clip, np.uint8)
+        clips.append(clip_array.tobytes())
+    return clips, label
+
+
 def read_clip_and_label(line):
     """
     read pic according the dir path, return the clip for tf record writer
@@ -30,7 +54,7 @@ def read_clip_and_label(line):
     clip = []
     i = 0
     for name in sorted(os.listdir(img_dir)):
-        print('current dir: %s\n' % name)
+        print('current dir: %s' % name)
         img_name = os.path.join(img_dir, name)
         img = skimage.data.imread(img_name)
         # format lhwc
@@ -54,7 +78,7 @@ def convert_to(img_name_list, record_name):
     print('Writing data to ', record_name)
 
     for line in img_dir_name_lines:
-        clips, label = read_clip_and_label(line)
+        clips, label = read_clip_and_label_1(line)
         for clip in clips:
             # Example -> Features ->Feature(is a dict)
             example = tf.train.Example(
@@ -69,8 +93,8 @@ def convert_to(img_name_list, record_name):
 
 
 def main(_):
-    convert_to(img_valid_name_list, 'rgb_train_uint8')
-    convert_to(img_valid_name_list, 'rgb_val_uint8')
+    convert_to(img_valid_name_list, 'rgb_8_train_uint8')
+    convert_to(img_valid_name_list, 'rgb_8_val_uint8')
 
 
 if __name__ == '__main__':
