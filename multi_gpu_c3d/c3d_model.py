@@ -6,8 +6,8 @@ import re
 import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_float('dropout_ratio', 0.5, "")
-tf.app.flags.DEFINE_float('weight_decay_ratio', 0.0005, "")
+tf.app.flags.DEFINE_float('dropout_ratio', 1, "")
+tf.app.flags.DEFINE_float('weight_decay_ratio', 0.005, "")
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the
@@ -24,8 +24,8 @@ def _activation_summary(var):
     """
     # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
     # tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', var.op.name)
-    mean = tf.reduce_mean(var)
-    tf.summary.scalar('mean', mean)
+    # mean = tf.reduce_mean(var)
+    # tf.summary.scalar('mean', mean)
     # with tf.name_scope('stddev'):
     #     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
     # tf.summary.scalar('stddev', stddev)
@@ -68,7 +68,7 @@ def _variable_with_weight_decay(name, shape, weight_decay_ratio=None, stddev=0.0
         weight_decay = tf.multiply(tf.nn.l2_loss(var), weight_decay_ratio, name='weight_loss')
         # add the loss of weight decay to losses
         tf.add_to_collection('losses', weight_decay)
-        tf.summary.scalar('weight_loss', weight_decay)
+        # tf.summary.scalar('weight_loss', weight_decay)
     return var
 
 

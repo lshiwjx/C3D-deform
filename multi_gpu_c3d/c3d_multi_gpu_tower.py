@@ -51,7 +51,7 @@ def tower_loss_accuracy(scope, images, labels, is_training):
 
     # calculate the loss and accuracy of a batch.
     loss, accuracy = batch_loss_accu(logits, labels)
-    tf.summary.scalar('loss_inference', loss)
+    # tf.summary.scalar('loss_inference', loss)
 
     # Assemble all of the losses for the current tower only.
     losses = tf.get_collection('losses', scope)
