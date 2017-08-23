@@ -9,47 +9,50 @@ from c3d_read_tfrecord import *
 from c3d_model import *
 
 FLAGS = tf.app.flags.FLAGS
-# train
-tf.app.flags.DEFINE_integer('batch_size', 1,
-                            """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_integer('num_classes', 101,
-                            """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_integer('num_gpus', 1, """How many GPUs to use.""")
-tf.app.flags.DEFINE_integer('num_epochs', None, """Number of epochs to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 1000000, """Number of batches to run.""")
+
 # Keep 3 decimal place
 tf.app.flags.DEFINE_boolean('use_fp16', False, """Train the model using fp16.""")
+# Print device log before training
 tf.app.flags.DEFINE_boolean('log_device_placement', False, """find out which devices are used.""")
 # saver
 tf.app.flags.DEFINE_string('checkpoint_dir', './checkout_dir', "")
 tf.app.flags.DEFINE_string('summaries_dir', './summary_dir', "")
 tf.app.flags.DEFINE_string('tf_record_train', './rgb_8_train_uint8.tfrecords', "")
 tf.app.flags.DEFINE_string('tf_record_val', './rgb_8_val_uint8.tfrecords', "")
+
 # model load
 tf.app.flags.DEFINE_string('pretrain_model_file', './sports1m_finetuning_ucf101.model', "")
 tf.app.flags.DEFINE_boolean('use_pretrain_model', True, """Whether to log device placement.""")
 tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-900', "")
 tf.app.flags.DEFINE_boolean('use_last_model', False, """Whether to log device placement.""")
-# decay
-tf.app.flags.DEFINE_integer('num_epochs_per_decay', 100, "")  # 860
-tf.app.flags.DEFINE_integer('num_img_per_epoch', 10625, "get from pre_convert_image_to_list.sh")  # 2710
-tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")  # 0.2
-# learning rate schedule
-tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.1, "")  # 0.1
-tf.app.flags.DEFINE_float('initial_learning_rate', 0.001, "")  # 0.01
-# read record an preprocess
+
+tf.app.flags.DEFINE_integer('batch_size', 16, "")
 tf.app.flags.DEFINE_integer('video_clip_channels', 3, "")
-tf.app.flags.DEFINE_integer('video_clip_length', 16, "the number of frame for a clip of video")
+tf.app.flags.DEFINE_integer('video_clip_length', 16, "the number of frame for a clip")
 tf.app.flags.DEFINE_integer('video_clip_height', 120, "")
 tf.app.flags.DEFINE_integer('video_clip_width', 160, "")
 tf.app.flags.DEFINE_integer('crop_size', 112, "")
 tf.app.flags.DEFINE_float('crop_mean0', 101.60, "")
 tf.app.flags.DEFINE_float('crop_mean1', 97.62, "")
 tf.app.flags.DEFINE_float('crop_mean2', 90.34, "")
-tf.app.flags.DEFINE_integer('min_after_dequeue', 100, "")
-#
+
+tf.app.flags.DEFINE_integer('num_classes', 101, "")
+tf.app.flags.DEFINE_integer('num_gpus', 8, """How many GPUs to use.""")
+
+tf.app.flags.DEFINE_integer('num_epochs', None, """Number of epochs to run.""")
+tf.app.flags.DEFINE_integer('max_steps', 1000000, """Number of batches to run.""")
+# learning rate schedule
+tf.app.flags.DEFINE_integer('learning_rate_decay_step', 10000, "")  # 860
+tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.1, "")  # 0.1
+tf.app.flags.DEFINE_float('initial_learning_rate', 0.001, "")  # 0.001
+
+tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")  # 0.2
+
 tf.app.flags.DEFINE_float('dropout_ratio', 1, "")
+
 tf.app.flags.DEFINE_float('weight_decay_ratio', 0.0005, "")
+# shuffle level
+tf.app.flags.DEFINE_integer('min_after_dequeue', 1000, "")
 
 
 def train():
@@ -59,11 +62,9 @@ def train():
                                       initializer=tf.constant_initializer(0), trainable=False)
 
         # Learning rate schedule.
-        num_batches_per_epoch = (FLAGS.num_img_per_epoch / FLAGS.batch_size / FLAGS.num_gpus)
-        decay_steps = int(num_batches_per_epoch * FLAGS.num_epochs_per_decay)
         learning_rate_basic = tf.train.exponential_decay(FLAGS.initial_learning_rate,
                                                          global_step,
-                                                         decay_steps,
+                                                         FLAGS.learning_rate_decay_step,
                                                          FLAGS.learning_rate_decay_factor,
                                                          staircase=True)
         tf.summary.scalar('learning rate: ', learning_rate_basic)
@@ -76,8 +77,12 @@ def train():
         dropout_ratio = tf.placeholder(tf.float32)
 
         # Start reading data queues
-        images_batch_train, labels_batch_train = read_data_batch(FLAGS.tf_record_train)
-        images_batch_val, labels_batch_val = read_data_batch(FLAGS.tf_record_val)
+        with tf.name_scope('input_pipeline'):
+            with tf.name_scope('train'):
+                images_batch_train, labels_batch_train = read_data_batch(FLAGS.tf_record_train)
+            with tf.name_scope('val'):
+                images_batch_val, labels_batch_val = read_data_batch(FLAGS.tf_record_val)
+
         images_batch, labels_batch = tf.cond(is_training,
                                              lambda: [images_batch_train, labels_batch_train],
                                              lambda: [images_batch_val, labels_batch_val])
@@ -165,21 +170,18 @@ def train():
 
         # Init all
         sess.run(tf.global_variables_initializer())
-        # 0 or from saver
+        # Initial steps, from saver
         step = sess.run(global_step)
-        # step = 0
-        print('step1:', step)
         # Start train and val.
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
         try:
             print('Training start')
             while not coord.should_stop():
-                epoch = step / num_batches_per_epoch / FLAGS.num_gpus
                 if not step % 10 == 9:
                     step += 1
                     # Training
-                    if step == 100:
+                    if step == 99:
                         # add the runtime statistics
                         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                         run_metadata = tf.RunMetadata()
@@ -191,7 +193,7 @@ def train():
                                                   dropout_ratio: FLAGS.dropout_ratio})
                         train_writer.add_run_metadata(run_metadata, 'step%d' % step)
                         train_writer.add_summary(summary_merged, step)
-                        print('epoch %d step %d loss %.2f accu %.2f' % (epoch, step, loss_train, acc_train))
+                        print('step %d loss %.2f accu %.2f' % (step, loss_train, acc_train))
                         print('Adding run metadata for', step)
                     else:
                         _, loss_train, acc_train, summary_merged \
@@ -200,7 +202,7 @@ def train():
                                                   dropout_ratio: FLAGS.dropout_ratio})
                         train_writer.add_summary(summary_merged, step)
                         assert not np.isnan(loss_train), 'Model diverged with tower_loss = NaN'
-                        print('epoch %d step %d loss %.2f accu %.2f' % (epoch, step, loss_train, acc_train))
+                        print('step %d loss %.2f accu %.2f' % (step, loss_train, acc_train))
                 else:
                     step += 1
                     # Validation
@@ -209,7 +211,7 @@ def train():
                         feed_dict={is_training: False,
                                    dropout_ratio: 1})
                     val_writer.add_summary(summary_merged_val, step)
-                    print('Validation: epoch %d step %d loss %.2f accu %.2f' % (epoch, step, loss_val, acc_val))
+                    print('Validation: step %d loss %.2f accu %.2f' % (step, loss_val, acc_val))
 
                 # Save the model checkpoint periodically.
                 if step % 1000 == 999 or (step + 1) == FLAGS.max_steps:
@@ -217,8 +219,7 @@ def train():
                     saver.save(sess, checkpoint_path, global_step=global_step)
 
         except tf.errors.OutOfRangeError:
-            epoch = step / num_batches_per_epoch / FLAGS.num_gpus
-            print('Done training for %d epochs, %d steps.' % (epoch, step))
+            print('Done training for %d steps.' % (step))
         finally:
             # When done, ask the threads to stop.
             coord.request_stop()

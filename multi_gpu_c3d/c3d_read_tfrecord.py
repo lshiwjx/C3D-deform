@@ -62,27 +62,26 @@ def read_data_batch(tf_record_file):
     """
 
     num_epochs = FLAGS.num_epochs
-    with tf.name_scope('data_input'):
-        # create a queue and enqueue with the filename
-        filename_queue = tf.train.string_input_producer(
-            [tf_record_file], num_epochs=num_epochs, capacity=32)
+    # create a queue and enqueue with the filename
+    filename_queue = tf.train.string_input_producer(
+        [tf_record_file], num_epochs=num_epochs, capacity=32)
 
-        # read the img as tensor
-        video_clip, label = decode_from_tfrecord(filename_queue)
+    # read the img as tensor
+    video_clip, label = decode_from_tfrecord(filename_queue)
 
-        # TODO: tf.train.shuffle_batch_join if it is slow
-        # img_list = [decode_from_tfrecord(filename_queue,crop_mean) for _ in range(3) ]
-        # imgs, label_batch = tf.train.shuffle_batch_join(img_list, batch_size=batch_size,
+    # TODO: tf.train.shuffle_batch_join if it is slow
+    # img_list = [decode_from_tfrecord(filename_queue,crop_mean) for _ in range(3) ]
+    # imgs, label_batch = tf.train.shuffle_batch_join(img_list, batch_size=batch_size,
 
-        num_treads = 10
-        # minimum number for examples, or will block dequeue
-        min_after_dequeue = FLAGS.min_after_dequeue
-        safety_margin = 3
-        # capacity of the queue, or will block enqueue
-        capacity = min_after_dequeue + (num_treads + safety_margin) * FLAGS.batch_size
-        # return a batch of tensor, will build a queue, a queue runner and the enqueue/dequeue operations.
-        video_clip_batch, label_batch = tf.train.shuffle_batch(
-            [video_clip, label], batch_size=FLAGS.batch_size, num_threads=num_treads,
-            capacity=capacity, min_after_dequeue=min_after_dequeue)
+    num_treads = 10
+    # minimum number for examples, or will block dequeue
+    min_after_dequeue = FLAGS.min_after_dequeue
+    safety_margin = 3
+    # capacity of the queue, or will block enqueue
+    capacity = min_after_dequeue + (num_treads + safety_margin) * FLAGS.batch_size
+    # return a batch of tensor, will build a queue, a queue runner and the enqueue/dequeue operations.
+    video_clip_batch, label_batch = tf.train.shuffle_batch(
+        [video_clip, label], batch_size=FLAGS.batch_size, num_threads=num_treads,
+        capacity=capacity, min_after_dequeue=min_after_dequeue)
 
-        return video_clip_batch, label_batch
+    return video_clip_batch, label_batch
