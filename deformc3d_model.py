@@ -69,10 +69,10 @@ def _variable_with_weight_decay(name, shape, weight_decay_ratio=None, stddev=0.0
     return var
 
 
-def deform_conv3d(filter_name, biases_name, input,offset,
-                    filter_shape, offset_shape, biases_shape,
-                    filter_weight_decay=None, offset_weight_decay=None, biases_weight_decay=None,
-                    filter_stddev=0.0, offset_stddev=0.0, biases_stddev=0.0):
+def deform_conv3d(filter_name, biases_name, input, offset,
+                  filter_shape, offset_shape, biases_shape,
+                  filter_weight_decay=None, offset_weight_decay=None, biases_weight_decay=None,
+                  filter_stddev=0.0, offset_stddev=0.0, biases_stddev=0.0):
     """
     
     :param filter_name: 
@@ -90,12 +90,12 @@ def deform_conv3d(filter_name, biases_name, input,offset,
     :param biases_stddev: 
     :return: [n,c*c',l",h",w"]->[n,l",h",w",c*c']
     """
-    filter = _variable_with_weight_decay(filter_name,filter_shape,filter_weight_decay,filter_stddev)
-    input_trans = tf.transpose(input, perm=[0,4,1,2,3])
-    deform_conv_trans = deform_conv3d_op.deform_conv3d(input_trans,filter,offset,padding='SAME')
-    deform_conv = tf.transpose(deform_conv_trans, perm=[0,2,3,4,1])
-    biases=_variable_with_weight_decay(biases_name,biases_shape,biases_weight_decay,biases_stddev)
-    pre_activation = tf.nn.bias_add(deform_conv,biases)
+    filter = _variable_with_weight_decay(filter_name, filter_shape, filter_weight_decay, filter_stddev)
+    input_trans = tf.transpose(input, perm=[0, 4, 1, 2, 3])
+    deform_conv_trans = deform_conv3d_op.deform_conv3d(input_trans, filter, offset, padding='SAME')
+    deform_conv = tf.transpose(deform_conv_trans, perm=[0, 2, 3, 4, 1])
+    biases = _variable_with_weight_decay(biases_name, biases_shape, biases_weight_decay, biases_stddev)
+    pre_activation = tf.nn.bias_add(deform_conv, biases)
     return pre_activation
 
 
@@ -175,25 +175,27 @@ def inference_c3d(videos, is_training, is_feature_extractor=False):
 
     # Conv2 Layer
     with tf.variable_scope('conv2') as scope:
+        deform_group = 2
         conv2 = conv_3d('weighta', 'biasesa', pool1,
                         [3, 3, 3, 64, 128], [128],
                         filter_weight_decay=FLAGS.weight_decay_ratio,
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 64)) ** 0.5)
         conv2 = conv_3d('weightb', 'biasesb', conv2,
-                        [3, 3, 3, 64, 128], [128],
+                        [3, 3, 3, 128, 81*deform_group], [81*deform_group],
                         filter_weight_decay=FLAGS.weight_decay_ratio,
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 64)) ** 0.5)
         conv2 = tf.nn.relu(conv2, name=scope.name)
-        offset = max_pool('pool2', conv2, 2)
-        tf.reshape(offset)
-        tf.transpose(pool1)
-        conv2 = deform_conv3d('weightc','biasesc',pool1,offset,[],[],[])
-        tf.transpose(conv2)
+        offset = tf.reshape(conv2, [FLAGS.batch_size, 16, 56, 56, deform_group, 3, 3, 3, 3])
+        offset = tf.reduce_mean(offset, 0)
+        # 2,16,56,56,3,3,3,3
+        offset = tf.transpose(offset,perm=[3,0,1,2,4,5,6,7])
+        # 4,16,56,56,64 -> 4,16,56,56,128
+        conv2 = deform_conv3d('weightc', 'biasesc', pool1, offset,
+                              [2,3,3,3], [deform_group, 16, 56, 56, 3, 3, 3, 3], [128])
 
-
-        visual = tf.expand_dims(tf.transpose(conv2[0],perm=[3,0,1,2]),4)
+        visual = tf.expand_dims(tf.transpose(conv2[0], perm=[3, 0, 1, 2]), 4)
         tf.summary.image('feature_map', visual[0], 3)
         # print('\n', scope.name)
         # print('input shape :', pool1.shape)
