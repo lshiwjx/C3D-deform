@@ -34,18 +34,18 @@ def batch_loss_accu(logits, labels):
     return loss_batch, accu_batch
 
 
-def tower_loss_accuracy(scope, images, labels, is_training):
+def tower_loss_accuracy(scope, video_clip, labels, dropout_ratio):
     """Calculate the total loss on a single tower.
     Args:
       scope: unique prefix string identifying the tower, e.g. 'tower_0'
-      images: Images. 4D tensor of shape [batch_size, height, width, 3].
+      video_clip: Images. 4D tensor of shape [batch_size, height, width, 3].
       labels: Labels. 1D tensor of shape [batch_size].
-      is_training:
+      dropout_ratio:
     Returns:
-       Tensor of shape [] containing the total loss for a batch of data
+       Tensor of shape [] containing the total loss and accuracy for a batch of data
     """
     # Build inference Graph.
-    logits = c3d_model.inference_c3d(images, is_training)
+    logits = c3d_model.inference_c3d(video_clip, dropout_ratio)
 
     # labels = tf.cast(tf.reduce_sum(labels, 1),tf.int32)
 

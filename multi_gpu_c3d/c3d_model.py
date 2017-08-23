@@ -6,13 +6,6 @@ import re
 import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_float('dropout_ratio', 1, "")
-tf.app.flags.DEFINE_float('weight_decay_ratio', 0.0001, "")
-
-# If a model is trained with multiple GPUs, prefix all Op names with tower_name
-# to differentiate the operations. Note that this prefix is removed from the
-# names of the summaries when visualizing a model.
-TOWER_NAME = 'tower'
 
 
 def _activation_summary(var):
@@ -23,7 +16,7 @@ def _activation_summary(var):
       var: Tensor
     """
     # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
-    # tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', var.op.name)
+    # tensor_name = re.sub('%s_[0-9]*/' % 'tower', '', var.op.name)
     # mean = tf.reduce_mean(var)
     # tf.summary.scalar('mean', mean)
     # with tf.name_scope('stddev'):
@@ -105,40 +98,31 @@ def max_pool(name, l_input, depth):
                             name=name)
 
 
-def inference_c3d(videos, is_training, is_feature_extractor=False):
-    """Generate the 3d convolution classification output according to the input videos
+def inference_c3d(video_clip, dropout_ratio, is_feature_extractor=False):
+    """Generate the 3d convolution classification output according to the input video_clip
   
     Args:
-        videos: Data Input, the shape of the Data Input is [batch_size, channel, length, height, weight]
-        is_training: 
+        video_clip: Data Input, the shape of the Data Input is [batch_size, channel, length, height, weight]
+        dropout_ratio: Tensor for scalar, diff for train or val
         is_feature_extractor: used as feature extractor or not
     Return:
       out: classification result, the shape is [batch_size, num_classes]
     """
 
-    if is_training:
-        dropout_ratio = FLAGS.dropout_ratio
-    else:
-        dropout_ratio = 1
-
-    # print('is training: ', is_training)
-    # print('dropout ratio: ', dropout_ratio)
-    # print('weight_decay_ratio: ', FLAGS.weight_decay_ratio)
-
     # Conv1 Layer
     with tf.variable_scope('conv1') as scope:
         # summary image
-        # image_summary = tf.transpose(videos, perm=[0, 2, 3, 4, 1])[0]
-        tf.summary.image('video', videos[0], max_outputs=1)
+        # image_summary = tf.transpose(video_clip, perm=[0, 2, 3, 4, 1])[0]
+        tf.summary.image('video', video_clip[0], max_outputs=3)
 
-        conv1 = conv_3d('weight', 'biases', videos,
+        conv1 = conv_3d('weight', 'biases', video_clip,
                         [3, 3, 3, FLAGS.video_clip_channels, 64], [64],
                         filter_weight_decay=FLAGS.weight_decay_ratio,
                         biases_weight_decay=None,
                         filter_stddev=(2.0 / (3 ** 3 * 3)) ** 0.5)
         conv1 = tf.nn.relu(conv1, name=scope.name)
         # print('\n', scope.name)
-        # print('input shape :', videos.shape)
+        # print('input shape :', video_clip.shape)
         # print('filter shape: ', [3, 3, 3, FLAGS.video_clip_channels, 64])
         # print('out shape: ', conv1.shape)
         _activation_summary(conv1)
