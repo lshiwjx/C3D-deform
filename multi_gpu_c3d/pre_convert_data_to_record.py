@@ -14,6 +14,7 @@ clip_length = 16
 clip_height = 120
 clip_width = 160
 img_name_list_dir = "./"
+record_store_dir = './record/UCF101/'
 img_train_name_list = "train.txt"
 img_valid_name_list = "val.txt"
 
@@ -74,7 +75,8 @@ def read_clip_and_label(line):
 def convert_to(img_name_list, record_name):
     img_dir_name_lines = open(img_name_list_dir + img_name_list, 'r').readlines()
 
-    record_writer = tf.python_io.TFRecordWriter(record_name + '.tfrecords')
+    record_writer = tf.python_io.TFRecordWriter(
+        record_store_dir+record_name + '.tfrecords')
     print('Writing data to ', record_name)
 
     for line in img_dir_name_lines:

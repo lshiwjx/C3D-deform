@@ -22,9 +22,9 @@ tf.app.flags.DEFINE_string('tf_record_val', './rgb_8_val_uint8.tfrecords', "")
 
 # model load
 tf.app.flags.DEFINE_string('pretrain_model_file', './sports1m_finetuning_ucf101.model', "")
-tf.app.flags.DEFINE_boolean('use_pretrain_model', True, """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-41400', "")
-tf.app.flags.DEFINE_boolean('use_last_model', False, """Whether to log device placement.""")
+tf.app.flags.DEFINE_boolean('use_pretrain_model', True, """.""")
+tf.app.flags.DEFINE_string('last_model', './model.ckpt-41400', "")
+tf.app.flags.DEFINE_boolean('use_last_model', False, """""")
 
 tf.app.flags.DEFINE_integer('batch_size', 16, "")
 tf.app.flags.DEFINE_integer('video_clip_channels', 3, "")
@@ -48,11 +48,11 @@ tf.app.flags.DEFINE_float('initial_learning_rate', 0.001, "")  # 0.001
 
 tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")  # 0.2
 
-tf.app.flags.DEFINE_float('dropout_ratio', 1, "")
+tf.app.flags.DEFINE_float('dropout_ratio', 0.6, "")
 
-tf.app.flags.DEFINE_float('weight_decay_ratio', 0.0005, "")
+tf.app.flags.DEFINE_float('weight_decay_ratio', 0.001, "")
 # shuffle level
-tf.app.flags.DEFINE_integer('min_after_dequeue', 1000, "")
+tf.app.flags.DEFINE_integer('min_after_dequeue', 4000, "")
 
 
 def train():
@@ -144,12 +144,14 @@ def train():
         if FLAGS.use_last_model:
             with tf.variable_scope(tf.get_variable_scope(), reuse=True):
                 saver_c3d = tf.train.Saver()
+                print('using last model')
                 saver_c3d.restore(sess, FLAGS.last_model)
                 step = int(FLAGS.last_model.split('/')[-1].split('-')[-1])
 
         elif FLAGS.use_pretrain_model:
             with tf.variable_scope(tf.get_variable_scope(), reuse=True):
                 # Choose which variables to load
+                print('using pretrained model')
                 variables = {
                     "var_name/wc1": tf.get_variable('conv1/weight'),
                     "var_name/wc2": tf.get_variable('conv2/weight'),
@@ -184,7 +186,7 @@ def train():
                 if not step % 10 == 9:
                     step += 1
                     # Training
-                    if step == 99:
+                    if step == 5:
                         # add the runtime statistics
                         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                         run_metadata = tf.RunMetadata()
