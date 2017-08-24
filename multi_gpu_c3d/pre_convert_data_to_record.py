@@ -93,7 +93,7 @@ def convert_to(img_name_list, record_name):
 
 
 def main(_):
-    convert_to(img_valid_name_list, 'rgb_8_train_uint8')
+    convert_to(img_train_name_list, 'rgb_8_train_uint8')
     convert_to(img_valid_name_list, 'rgb_8_val_uint8')
 
 
