@@ -23,7 +23,7 @@ tf.app.flags.DEFINE_string('tf_record_val', './rgb_8_val_uint8.tfrecords', "")
 # model load
 tf.app.flags.DEFINE_string('pretrain_model_file', './sports1m_finetuning_ucf101.model', "")
 tf.app.flags.DEFINE_boolean('use_pretrain_model', True, """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-900', "")
+tf.app.flags.DEFINE_string('last_model', FLAGS.checkpoint_dir + '/model.ckpt-41400', "")
 tf.app.flags.DEFINE_boolean('use_last_model', False, """Whether to log device placement.""")
 
 tf.app.flags.DEFINE_integer('batch_size', 16, "")
@@ -128,10 +128,26 @@ def train():
             allow_soft_placement=True,
             log_device_placement=FLAGS.log_device_placement))
 
+        # Merge summary and create two writer to plot variable in same plot
+        summary_op = tf.summary.merge_all()
+        train_writer = tf.summary.FileWriter(FLAGS.summaries_dir + '/train', sess.graph)
+        val_writer = tf.summary.FileWriter(FLAGS.summaries_dir + '/val')
+
+        # Init all
+        sess.run(tf.global_variables_initializer())
+
+        # Initial steps
+        step = 0
         # Create a saver.
         saver = tf.train.Saver()
         # Whether load existed model
-        if FLAGS.use_pretrain_model:
+        if FLAGS.use_last_model:
+            with tf.variable_scope(tf.get_variable_scope(), reuse=True):
+                saver_c3d = tf.train.Saver()
+                saver_c3d.restore(sess, FLAGS.last_model)
+                step = int(FLAGS.last_model.split('/')[-1].split('-')[-1])
+
+        elif FLAGS.use_pretrain_model:
             with tf.variable_scope(tf.get_variable_scope(), reuse=True):
                 # Choose which variables to load
                 variables = {
@@ -158,20 +174,7 @@ def train():
                 }
                 saver_c3d = tf.train.Saver(variables)
                 saver_c3d.restore(sess, FLAGS.pretrain_model_file)
-        elif FLAGS.use_last_model:
-            with tf.variable_scope(tf.get_variable_scope(), reuse=True):
-                saver_c3d = tf.train.Saver()
-                saver_c3d.restore(sess, FLAGS.last_model)
 
-        # Merge summary and create two writer to plot variable in same plot
-        summary_op = tf.summary.merge_all()
-        train_writer = tf.summary.FileWriter(FLAGS.summaries_dir + '/train', sess.graph)
-        val_writer = tf.summary.FileWriter(FLAGS.summaries_dir + '/val')
-
-        # Init all
-        sess.run(tf.global_variables_initializer())
-        # Initial steps, from saver
-        step = sess.run(global_step)
         # Start train and val.
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
