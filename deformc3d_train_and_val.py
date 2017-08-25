@@ -26,7 +26,7 @@ tf.app.flags.DEFINE_boolean('use_pretrain_model', True, """.""")
 tf.app.flags.DEFINE_string('last_model', './model.ckpt-41400', "")
 tf.app.flags.DEFINE_boolean('use_last_model', False, """""")
 
-tf.app.flags.DEFINE_integer('batch_size', 16, "")
+tf.app.flags.DEFINE_integer('batch_size', 1, "")
 tf.app.flags.DEFINE_integer('video_clip_channels', 3, "")
 tf.app.flags.DEFINE_integer('video_clip_length', 16, "the number of frame for a clip")
 tf.app.flags.DEFINE_integer('video_clip_height', 120, "")
@@ -51,6 +51,7 @@ tf.app.flags.DEFINE_float('moving_average_decay', 0.2, "")  # 0.2
 tf.app.flags.DEFINE_float('dropout_ratio', 0.6, "")
 
 tf.app.flags.DEFINE_float('weight_decay_ratio', 0.001, "")
+tf.app.flags.DEFINE_float('wd',0.01,"")
 # shuffle level
 tf.app.flags.DEFINE_integer('min_after_dequeue', 4000, "")
 
@@ -159,8 +160,8 @@ def train():
                     "var_name/wc3b": tf.get_variable('conv3/weight_b'),
                     "var_name/wc4a": tf.get_variable('conv4/weight_a'),
                     "var_name/wc4b": tf.get_variable('conv4/weight_b'),
-                    "var_name/wc5a": tf.get_variable('conv5/weight_a'),
-                    "var_name/wc5b": tf.get_variable('conv5/weight_b'),
+                    # "var_name/wc5a": tf.get_variable('conv5/weight_a'),
+                    # "var_name/wc5b": tf.get_variable('conv5/weight_b'),
                     "var_name/wd1": tf.get_variable('local6/weights'),
                     "var_name/wd2": tf.get_variable('local7/weights'),
                     "var_name/bc1": tf.get_variable('conv1/biases'),
@@ -169,8 +170,8 @@ def train():
                     "var_name/bc3b": tf.get_variable('conv3/biases_b'),
                     "var_name/bc4a": tf.get_variable('conv4/biases_a'),
                     "var_name/bc4b": tf.get_variable('conv4/biases_b'),
-                    "var_name/bc5a": tf.get_variable('conv5/biases_a'),
-                    "var_name/bc5b": tf.get_variable('conv5/biases_b'),
+                    # "var_name/bc5a": tf.get_variable('conv5/biases_a'),
+                    # "var_name/bc5b": tf.get_variable('conv5/biases_b'),
                     "var_name/bd1": tf.get_variable('local6/biases'),
                     "var_name/bd2": tf.get_variable('local7/biases')
                 }

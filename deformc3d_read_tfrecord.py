@@ -28,20 +28,20 @@ def decode_from_tfrecord(filename_queue):
     video_clip = tf.decode_raw(features['clip'], tf.uint8)
     video_clip = tf.reshape(video_clip, [FLAGS.video_clip_length, FLAGS.video_clip_height,
                                          FLAGS.video_clip_width, FLAGS.video_clip_channels])
-
-    # clip process input si NLHWC
-    video_clip = tf.transpose(video_clip, perm=[3, 0, 1, 2])
     video_clip = tf.cast(video_clip, tf.float32)
-    # crop_mean = np.load(crop_mean)
-    # crop_mean = tf.transpose(crop_mean, perm=[0, 3, 1, 2])
     video_clip = tf.random_crop(video_clip,
-                                [FLAGS.video_clip_channels, FLAGS.video_clip_length, FLAGS.crop_size, FLAGS.crop_size])
-    crop_mean0 = tf.fill([1, FLAGS.video_clip_length, FLAGS.crop_size, FLAGS.crop_size], FLAGS.crop_mean0)
-    crop_mean1 = tf.fill([1, FLAGS.video_clip_length, FLAGS.crop_size, FLAGS.crop_size], FLAGS.crop_mean1)
-    crop_mean2 = tf.fill([1, FLAGS.video_clip_length, FLAGS.crop_size, FLAGS.crop_size], FLAGS.crop_mean2)
-    crop_mean = tf.concat([crop_mean0, crop_mean1, crop_mean2], 0)
-    video_clip -= crop_mean
-    video_clip = tf.transpose(video_clip, perm=[1, 2, 3, 0])
+                                [ FLAGS.video_clip_length, FLAGS.crop_size, FLAGS.crop_size,FLAGS.video_clip_channels])
+
+    # # clip process input si NLHWC
+    # video_clip = tf.transpose(video_clip, perm=[3, 0, 1, 2])
+    # # crop_mean = np.load(crop_mean)
+    # # crop_mean = tf.transpose(crop_mean, perm=[0, 3, 1, 2])
+    # crop_mean0 = tf.fill([1, FLAGS.video_clip_length, FLAGS.crop_size, FLAGS.crop_size], FLAGS.crop_mean0)
+    # crop_mean1 = tf.fill([1, FLAGS.video_clip_length, FLAGS.crop_size, FLAGS.crop_size], FLAGS.crop_mean1)
+    # crop_mean2 = tf.fill([1, FLAGS.video_clip_length, FLAGS.crop_size, FLAGS.crop_size], FLAGS.crop_mean2)
+    # crop_mean = tf.concat([crop_mean0, crop_mean1, crop_mean2], 0)
+    # video_clip -= crop_mean
+    # video_clip = tf.transpose(video_clip, perm=[1, 2, 3, 0])
 
     label = tf.cast(features['label'], tf.int32)
     label = tf.reshape(label, [1])
